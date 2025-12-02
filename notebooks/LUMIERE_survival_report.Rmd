@@ -3,14 +3,14 @@ title: "Longitudinal FLAIR Radiomics and Survival in the LUMIERE Cohort"
 author: "Somayeh Sarirchi"
 date: "`r format(Sys.Date(), '%Y-%m-%d')`"
 output:
-  pdf_document:
-    toc: true
-    number_sections: true
   html_document:
     toc: true
     toc_depth: 3
     number_sections: true
     df_print: paged
+  pdf_document:
+    toc: true
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
