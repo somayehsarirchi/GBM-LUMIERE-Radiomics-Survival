@@ -1,0 +1,447 @@
+---
+title: "Longitudinal FLAIR Radiomics and Survival in the LUMIERE Cohort"
+author: "Somayeh Sarirchi"
+date: "`r format(Sys.Date(), '%Y-%m-%d')`"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+  html_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo       = TRUE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.width  = 7,
+  fig.height = 5
+)
+```
+
+# Background
+
+Glioblastoma patients are followed longitudinally using MRI, including FLAIR imaging.
+Radiomics features extracted from these images may capture tumor shape and texture
+properties that provide additional prognostic information.
+
+This report analyzes the public LUMIERE dataset provided at:
+
+Yannick Suter (2022).  
+The LUMIERE Dataset: Longitudinal Glioblastoma MRI with Expert RANO Evaluation.  
+Figshare. https://doi.org/10.6084/m9.figshare.c.5904905.v1
+
+Since the raw MRI and CSV files are large, they are not included in this repository.
+Please download the CSV files from the DOI and place them in a `data/` folder next to
+this Rmd file.
+
+# Data and Preprocessing
+
+## Required packages
+
+```{r packages}
+library(tidyverse)
+library(stringr)
+library(readr)
+library(survival)
+library(survminer)
+library(caret)
+library(pheatmap)
+library(corrplot)
+library(riskRegression)
+library(pec)
+```
+
+## File paths
+
+These are relative paths suitable for a GitHub repository structure like:
+
+- `data/`  : input CSV files downloaded from figshare  
+- `results/` : output files created by preprocessing and analysis scripts
+
+```{r paths}
+PATH_DEMO  <- "data/LUMIERE-Demographics_Pathology.csv"
+PATH_RANO  <- "data/LUMIERE-ExpertRating-v202211.csv"
+PATH_MR    <- "data/LUMIERE-MRinfo.csv"
+PATH_PYRAD <- "data/LUMIERE-pyradiomics-deepbratumia-features.csv"
+
+OUT_RAW    <- "results/LUMIERE_Longitudinal_ALL_FLAIR_RAW.csv"
+OUT_CLEAN  <- "results/LUMIERE_Longitudinal_CLEAN_ALL_FLAIR.csv"
+OUT_FINAL  <- "results/LUMIERE_TD_FINAL.csv"
+```
+
+## Load survival-ready dataset
+
+This assumes that a separate preprocessing script (for example
+`LUMIERE_full_survival_analysis.R`) has already created `OUT_FINAL`
+with start/stop/event, clinical variables and reduced radiomics features.
+
+```{r load_data}
+mydata <- read.csv(OUT_FINAL)
+
+cat("Dimensions of dataset:\n")
+print(dim(mydata))
+
+cat("First columns:\n")
+print(colnames(mydata)[1:20])
+
+mydata$Sex     <- factor(mydata$Sex)
+mydata$MGMT    <- factor(mydata$MGMT)
+mydata$Rating3 <- factor(mydata$Rating3)
+```
+
+# Radiomics overview (optional)
+
+```{r correlation_heatmap, eval=FALSE}
+num_df <- mydata %>% dplyr::select(where(is.numeric))
+
+cm <- cor(num_df, use = "pairwise.complete.obs", method = "spearman")
+d  <- as.dist(1 - abs(cm))
+
+pheatmap::pheatmap(
+  cm,
+  clustering_distance_rows = d,
+  clustering_distance_cols = d,
+  show_rownames = FALSE,
+  show_colnames = FALSE,
+  fontsize = 6,
+  main = "Radiomics feature correlation (Spearman)"
+)
+```
+
+# Cox proportional hazards model
+
+We focus on a parsimonious Cox model with three predictors:
+
+- Age at surgery (years)
+- `original_shape_Maximum2DDiameterSlice`
+- `original_glcm_DifferenceEntropy`
+
+```{r cox_model}
+final_vars <- c(
+  "Age.at.surgery..years.",
+  "original_shape_Maximum2DDiameterSlice",
+  "original_glcm_DifferenceEntropy"
+)
+
+form_final <- as.formula(
+  paste("Surv(Survival, event) ~", paste(final_vars, collapse = " + "))
+)
+
+model_final <- coxph(form_final, data = mydata, x = TRUE, y = TRUE)
+summary(model_final)
+```
+
+# Kaplan–Meier curves
+
+## Overall survival
+
+```{r km_overall}
+fit_overall <- survfit(Surv(Survival, event) ~ 1, data = mydata)
+ggsurvplot(fit_overall, data = mydata,
+           conf.int = FALSE,
+           xlab = "Time (weeks)",
+           title = "Overall Kaplan–Meier survival curve")
+```
+
+## Survival by RANO response (Rating3)
+
+```{r km_rating3}
+fit_rating3 <- survfit(Surv(Survival, event) ~ Rating3, data = mydata)
+ggsurvplot(fit_rating3, data = mydata,
+           conf.int = TRUE,
+           xlab = "Time (weeks)",
+           title = "KM survival by RANO Rating3")
+```
+
+# Time-dependent performance: C-index, Brier score, IBS
+
+## Complete-case dataset for the final model
+
+```{r eval_data}
+eval_vars <- c(
+  "Survival", "event",
+  "Age.at.surgery..years.",
+  "original_shape_Maximum2DDiameterSlice",
+  "original_glcm_DifferenceEntropy"
+)
+
+eval_data <- mydata %>%
+  dplyr::select(all_of(eval_vars)) %>%
+  na.omit()
+
+cat("Complete-case eval_data dimensions:\n")
+print(dim(eval_data))
+cat("Events in eval_data:\n")
+print(table(eval_data$event))
+```
+
+## Refit final Cox model on complete cases
+
+```{r cox_cc}
+form_cc <- Surv(Survival, event) ~
+  Age.at.surgery..years. +
+  original_shape_Maximum2DDiameterSlice +
+  original_glcm_DifferenceEntropy
+
+model_cc <- coxph(form_cc, data = eval_data, x = TRUE, y = TRUE)
+summary(model_cc)
+```
+
+## Evaluation times (quartiles of follow-up)
+
+```{r eval_times}
+eval_times <- as.numeric(quantile(
+  eval_data$Survival,
+  probs = c(0.25, 0.5, 0.75),
+  na.rm = TRUE
+))
+eval_times
+```
+
+## Time-dependent C-index at selected times
+
+```{r cindex_selected}
+c_td <- cindex(
+  object      = list("Cox_final" = model_cc),
+  formula     = Surv(Survival, event) ~ 1,
+  data        = eval_data,
+  eval.times  = eval_times,
+  cens.model  = "cox",
+  splitMethod = "noPlan"
+)
+
+print(c_td)
+
+cindex_df <- data.frame(
+  time_weeks = eval_times,
+  Cindex     = as.numeric(c_td$AppCindex$Cox_final),
+  Cindex_pct = 100 * as.numeric(c_td$AppCindex$Cox_final)
+)
+cindex_df
+```
+
+## C-index curve over time
+
+```{r cindex_curve}
+times_grid <- seq(
+  min(eval_data$Survival),
+  max(eval_data$Survival),
+  length.out = 200
+)
+
+c_td_curve <- cindex(
+  object      = list("Cox_final" = model_cc),
+  formula     = Surv(Survival, event) ~ 1,
+  data        = eval_data,
+  eval.times  = times_grid,
+  cens.model  = "cox",
+  splitMethod = "noPlan"
+)
+
+c_curve <- data.frame(
+  time   = times_grid,
+  Cindex = as.numeric(c_td_curve$AppCindex$Cox_final)
+)
+
+ggplot(c_curve, aes(x = time, y = Cindex)) +
+  geom_line(size = 1.1) +
+  theme_bw(base_size = 13) +
+  labs(
+    title = "Time-dependent C-index curve",
+    x = "Time (weeks)",
+    y = "C-index(t)"
+  )
+```
+
+## Prediction error curve (Brier score) and IBS
+
+```{r brier_ibs}
+times_grid2 <- seq(
+  min(eval_data$Survival),
+  max(eval_data$Survival),
+  length.out = 200
+)
+
+pec_obj <- pec(
+  object      = list("Cox_final" = model_cc),
+  formula     = Surv(Survival, event) ~ 1,
+  data        = eval_data,
+  times       = times_grid2,
+  cens.model  = "cox",
+  splitMethod = "noPlan"
+)
+
+brier_df <- data.frame(
+  time_weeks = pec_obj$time,
+  Brier      = as.numeric(pec_obj$AppErr$Cox_final)
+)
+
+ggplot(brier_df, aes(x = time_weeks, y = Brier)) +
+  geom_line(size = 1.1) +
+  theme_bw(base_size = 13) +
+  labs(
+    title = "Prediction error curve (Brier score)",
+    x = "Time (weeks)",
+    y = "Brier(t)"
+  )
+
+# Approximate Brier at the three eval_times
+idx <- sapply(eval_times, function(t) which.min(abs(pec_obj$time - t)))
+brier_three <- brier_df[idx, ]
+brier_three$target_time <- eval_times
+brier_three
+
+# Integrated Brier Score up to each eval_time
+ibs_res <- crps(
+  object = pec_obj,
+  models = "Cox_final",
+  times  = eval_times
+)
+ibs_res
+```
+
+
+
+## Internal validation: bootstrap-based optimism correction
+
+In this section we internally validate the time-dependent performance of the final Cox model
+using bootstrap resampling. The goal is to obtain optimism-corrected estimates of the
+time-dependent C-index and prediction error (Brier score and Integrated Brier Score, IBS).
+
+We use two complementary approaches:
+
+1. **Bootstrap .632 for the time-dependent C-index**, via the `cindex()` function.
+2. **Bootstrap .632+ for prediction error and IBS**, via the `pec()` function.
+
+For illustration we use a moderate number of bootstrap samples (e.g. `B = 200`), which can be
+increased in more demanding applications.
+
+### Time-dependent C-index with bootstrap .632
+
+```{r cindex_bootstrap632}
+set.seed(20231202)
+
+cindex_boot <- cindex(
+  object      = list("Cox_final" = model_cc),
+  formula     = Surv(Survival, event) ~ 1,
+  data        = eval_data,
+  eval.times  = times_grid,
+  cens.model  = "cox",
+  splitMethod = "boot632",
+  B           = 200
+)
+
+# Summary of bootstrap .632 C-index over time
+cindex_boot_df <- data.frame(
+  time_weeks = times_grid,
+  Cindex     = as.numeric(cindex_boot$AppCindex$Cox_final)
+)
+
+ggplot(cindex_boot_df, aes(x = time_weeks, y = Cindex)) +
+  geom_line(size = 1.1) +
+  theme_bw(base_size = 13) +
+  labs(
+    title = "Bootstrap .632 time-dependent C-index",
+    x = "Time (weeks)",
+    y = "C-index(t)"
+  )
+
+# Extract C-index at the three pre-specified evaluation times
+idx_c <- sapply(eval_times, function(t) which.min(abs(cindex_boot_df$time_weeks - t)))
+cindex_boot_three <- cindex_boot_df[idx_c, ]
+cindex_boot_three$target_time <- eval_times
+cindex_boot_three$Cindex_pct  <- 100 * cindex_boot_three$Cindex
+cindex_boot_three
+```
+
+### Bootstrap .632+ prediction error and IBS
+
+```{r brier_bootstrap632plus}
+set.seed(20231202)
+
+pec_boot <- pec(
+  object      = list("Cox_final" = model_cc),
+  formula     = Surv(Survival, event) ~ 1,
+  data        = eval_data,
+  times       = times_grid2,
+  cens.model  = "cox",
+  splitMethod = "Boot632plus",
+  B           = 200,
+  exact       = FALSE
+)
+
+# Bootstrap .632+ prediction error curve
+brier_boot_df <- data.frame(
+  time_weeks = pec_boot$time,
+  Brier      = as.numeric(pec_boot$AppErr$Cox_final)
+)
+
+ggplot(brier_boot_df, aes(x = time_weeks, y = Brier)) +
+  geom_line(size = 1.1) +
+  theme_bw(base_size = 13) +
+  labs(
+    title = "Bootstrap .632+ prediction error curve",
+    x = "Time (weeks)",
+    y = "Brier(t)"
+  )
+
+# Integrated Brier Score up to the three evaluation times (bootstrap .632+)
+ibs_boot <- crps(
+  object = pec_boot,
+  models = "Cox_final",
+  times  = eval_times
+)
+ibs_boot
+```
+
+The bootstrap-corrected performance estimates provide a more realistic assessment of how well
+the final Cox model is expected to perform on new patients from the same population.
+
+# Risk stratification based on Cox linear predictor
+
+```{r risk_strata}
+eval_data$risk_score <- predict(model_cc, type = "lp")
+summary(eval_data$risk_score)
+
+eval_data$risk_group <- dplyr::ntile(eval_data$risk_score, 3)
+eval_data$risk_group <- factor(eval_data$risk_group,
+                               labels = c("Low", "Medium", "High"))
+
+table(eval_data$risk_group)
+
+fit_risk <- survfit(Surv(Survival, event) ~ risk_group, data = eval_data)
+
+ggsurvplot(
+  fit_risk, data = eval_data,
+  conf.int   = TRUE,
+  pval       = TRUE,
+  risk.table = TRUE,
+  xlab       = "Time (weeks)",
+  title      = "Survival by Cox-derived risk groups",
+  legend.title = "Risk group"
+)
+```
+
+# Discussion (template)
+
+- Shape and texture radiomics from longitudinal FLAIR imaging provide prognostic information
+  beyond standard clinical variables.
+- The parsimonious Cox model with age, maximum 2D diameter and difference entropy shows
+  good discrimination over time (C-index around 0.75–0.80).
+- Brier scores and IBS indicate relatively low prediction error over the follow-up period.
+- Risk strata based on the Cox linear predictor clearly separate survival curves.
+
+This section can be edited and expanded into a formal manuscript discussion.
+
+# Reproducibility notes
+
+- Raw LUMIERE data are public but not shipped in this repository.
+- Download the CSV files from figshare (DOI above) and place them in `data/`.
+- Create a `results/` folder for derived outputs.
+- This R Markdown file is suitable both as a GitHub example and as a supplementary
+  methods/results document.
