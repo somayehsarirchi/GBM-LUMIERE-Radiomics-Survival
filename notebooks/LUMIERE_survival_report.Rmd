@@ -71,7 +71,7 @@ PATH_PYRAD <- "data/LUMIERE-pyradiomics-deepbratumia-features.csv"
 
 OUT_RAW    <- "results/LUMIERE_Longitudinal_ALL_FLAIR_RAW.csv"
 OUT_CLEAN  <- "results/LUMIERE_Longitudinal_CLEAN_ALL_FLAIR.csv"
-OUT_FINAL  <- "results/LUMIERE_TD_FINAL.csv"
+OUT_FINAL  <- "data/LUMIERE_TD_FINAL.csv"
 ```
 
 ## Load survival-ready dataset
