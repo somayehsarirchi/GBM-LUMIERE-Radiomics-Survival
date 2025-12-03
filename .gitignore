@@ -47,3 +47,23 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+# RStudio project files (keep .Rproj, ignore user cache)
+.Rproj.user/
+
+# Data: raw / large / intermediate
+data/raw/
+data/processed/
+data/*.zip
+data/*.tar.gz
+
+# Knitted intermediates
+*_cache/
+*.utf8.md
+*.knit.md
+
+# Generated results and figures
+results/figures/
+results/*.pdf
+results/*.Rds
+results/*.rds
+
