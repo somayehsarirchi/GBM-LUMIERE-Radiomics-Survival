@@ -11,7 +11,7 @@
 
 <meta name="author" content="Somayeh Sarirchi" />
 
-<meta name="date" content="2025-12-02" />
+<meta name="date" content="2025-12-03" />
 
 <title>Longitudinal FLAIR Radiomics and Survival in the LUMIERE Cohort</title>
 
@@ -1624,7 +1624,7 @@ display: none;
 <h1 class="title toc-ignore">Longitudinal FLAIR Radiomics and Survival
 in the LUMIERE Cohort</h1>
 <h4 class="author">Somayeh Sarirchi</h4>
-<h4 class="date">2025-12-02</h4>
+<h4 class="date">2025-12-03</h4>
 
 </div>
 
@@ -1728,7 +1728,7 @@ PATH_PYRAD &lt;- &quot;data/LUMIERE-pyradiomics-deepbratumia-features.csv&quot;
 
 OUT_RAW    &lt;- &quot;results/LUMIERE_Longitudinal_ALL_FLAIR_RAW.csv&quot;
 OUT_CLEAN  &lt;- &quot;results/LUMIERE_Longitudinal_CLEAN_ALL_FLAIR.csv&quot;
-OUT_FINAL  &lt;- &quot;results/LUMIERE_TD_FINAL.csv&quot;</code></pre>
+OUT_FINAL  &lt;- &quot;data/LUMIERE_TD_FINAL.csv&quot;</code></pre>
 </div>
 <div id="load-survival-ready-dataset" class="section level2" number="2.3">
 <h2><span class="header-section-number">2.3</span> Load survival-ready
@@ -1737,38 +1737,18 @@ dataset</h2>
 <code>LUMIERE_full_survival_analysis.R</code>) has already created
 <code>OUT_FINAL</code> with start/stop/event, clinical variables and
 reduced radiomics features.</p>
-<pre class="r"><code>mydata &lt;- read.csv(OUT_FINAL)
+<pre class="r"><code># Load the final time-dependent dataset for analysis
+library(readr)
+library(here)
+
+OUT_FINAL &lt;- here(&quot;data&quot;, &quot;LUMIERE_TD_FINAL.csv&quot;)
+
+mydata &lt;- read_csv(OUT_FINAL)
 
 cat(&quot;Dimensions of dataset:\n&quot;)</code></pre>
 <pre><code>## Dimensions of dataset:</code></pre>
 <pre class="r"><code>print(dim(mydata))</code></pre>
 <pre><code>## [1] 584  46</code></pre>
-<pre class="r"><code>cat(&quot;First columns:\n&quot;)</code></pre>
-<pre><code>## First columns:</code></pre>
-<pre class="r"><code>print(colnames(mydata)[1:20])</code></pre>
-<pre><code>##  [1] &quot;Patient&quot;                               
-##  [2] &quot;Timepoint&quot;                             
-##  [3] &quot;week&quot;                                  
-##  [4] &quot;Rating&quot;                                
-##  [5] &quot;Rating2&quot;                               
-##  [6] &quot;Rating3&quot;                               
-##  [7] &quot;Survival&quot;                              
-##  [8] &quot;Sex&quot;                                   
-##  [9] &quot;Age.at.surgery..years.&quot;                
-## [10] &quot;IDH&quot;                                   
-## [11] &quot;MGMT&quot;                                  
-## [12] &quot;start&quot;                                 
-## [13] &quot;stop&quot;                                  
-## [14] &quot;event&quot;                                 
-## [15] &quot;diagnostics_Image.original_Mean&quot;       
-## [16] &quot;diagnostics_Image.original_Maximum&quot;    
-## [17] &quot;diagnostics_Image.interpolated_Mean&quot;   
-## [18] &quot;diagnostics_Image.interpolated_Maximum&quot;
-## [19] &quot;original_shape_Elongation&quot;             
-## [20] &quot;original_shape_Flatness&quot;</code></pre>
-<pre class="r"><code>mydata$Sex     &lt;- factor(mydata$Sex)
-mydata$MGMT    &lt;- factor(mydata$MGMT)
-mydata$Rating3 &lt;- factor(mydata$Rating3)</code></pre>
 </div>
 </div>
 <div id="radiomics-overview-optional" class="section level1" number="3">
@@ -1816,14 +1796,10 @@ summary(model_final)</code></pre>
 ##   n= 544, number of events= 86 
 ##    (40 observations deleted due to missingness)
 ## 
-##                                            coef exp(coef)  se(coef)      z
-## Age.at.surgery..years.                 0.090915  1.095176  0.014451  6.291
-## original_shape_Maximum2DDiameterSlice  0.026987  1.027355  0.003782  7.136
-## original_glcm_DifferenceEntropy       -0.665229  0.514156  0.232534 -2.861
-##                                       Pr(&gt;|z|)    
-## Age.at.surgery..years.                3.15e-10 ***
-## original_shape_Maximum2DDiameterSlice 9.60e-13 ***
-## original_glcm_DifferenceEntropy        0.00423 ** 
+##                                            coef exp(coef)  se(coef)      z Pr(&gt;|z|)    
+## Age.at.surgery..years.                 0.090915  1.095176  0.014451  6.291 3.15e-10 ***
+## original_shape_Maximum2DDiameterSlice  0.026987  1.027355  0.003782  7.136 9.60e-13 ***
+## original_glcm_DifferenceEntropy       -0.665229  0.514156  0.232534 -2.861  0.00423 ** 
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
@@ -1903,14 +1879,10 @@ summary(model_cc)</code></pre>
 ## 
 ##   n= 544, number of events= 86 
 ## 
-##                                            coef exp(coef)  se(coef)      z
-## Age.at.surgery..years.                 0.090915  1.095176  0.014451  6.291
-## original_shape_Maximum2DDiameterSlice  0.026987  1.027355  0.003782  7.136
-## original_glcm_DifferenceEntropy       -0.665229  0.514156  0.232534 -2.861
-##                                       Pr(&gt;|z|)    
-## Age.at.surgery..years.                3.15e-10 ***
-## original_shape_Maximum2DDiameterSlice 9.60e-13 ***
-## original_glcm_DifferenceEntropy        0.00423 ** 
+##                                            coef exp(coef)  se(coef)      z Pr(&gt;|z|)    
+## Age.at.surgery..years.                 0.090915  1.095176  0.014451  6.291 3.15e-10 ***
+## original_shape_Maximum2DDiameterSlice  0.026987  1.027355  0.003782  7.136 9.60e-13 ***
+## original_glcm_DifferenceEntropy       -0.665229  0.514156  0.232534 -2.861  0.00423 ** 
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 

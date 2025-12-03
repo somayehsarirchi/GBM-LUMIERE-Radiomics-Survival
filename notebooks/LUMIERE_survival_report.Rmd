@@ -81,17 +81,17 @@ This assumes that a separate preprocessing script (for example
 with start/stop/event, clinical variables and reduced radiomics features.
 
 ```{r load_data}
-mydata <- read.csv(OUT_FINAL)
+# Load the final time-dependent dataset for analysis
+library(readr)
+library(here)
+
+OUT_FINAL <- here("data", "LUMIERE_TD_FINAL.csv")
+
+mydata <- read_csv(OUT_FINAL)
 
 cat("Dimensions of dataset:\n")
 print(dim(mydata))
 
-cat("First columns:\n")
-print(colnames(mydata)[1:20])
-
-mydata$Sex     <- factor(mydata$Sex)
-mydata$MGMT    <- factor(mydata$MGMT)
-mydata$Rating3 <- factor(mydata$Rating3)
 ```
 
 # Radiomics overview (optional)
