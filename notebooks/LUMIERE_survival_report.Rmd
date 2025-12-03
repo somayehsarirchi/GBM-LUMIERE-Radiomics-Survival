@@ -40,6 +40,9 @@ Please download the CSV files from the DOI and place them in a `data/` folder ne
 this Rmd file.
 
 # Data and Preprocessing
+The preprocessed time-dependent dataset used in this report is stored as  
+`data/LUMIERE_TD_FINAL.csv`. A companion script (`scripts/01_preprocess_to_TD_FINAL.R`)  
+demonstrates how this file can be derived from the original LUMIERE CSV files.
 
 ## Required packages
 
@@ -445,3 +448,10 @@ This section can be edited and expanded into a formal manuscript discussion.
 - Create a `results/` folder for derived outputs.
 - This R Markdown file is suitable both as a GitHub example and as a supplementary
   methods/results document.
+- The main analysis scripts are provided under `scripts/`:
+  - `01_preprocess_to_TD_FINAL.R`: preprocessing pipeline to derive `LUMIERE_TD_FINAL.csv`
+  - `02_run_survival_models.R`: fits the final Cox model
+  - `03_plot_results.R`: creates time-dependent performance and risk-group KM plots
+  - `04_export_results.R`: exports summary tables (C-index, IBS, etc.)
+  - `05_render_report.R`: renders this R Markdown file to HTML
+
