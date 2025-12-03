@@ -1,67 +1,83 @@
 # scripts/01_preprocess_to_TD_FINAL.R
-#
+# ------------------------------------------------------------
 # Purpose:
-#   - Read the raw LUMIERE CSV files
-#   - Merge and clean them
-#   - Create the time-dependent survival dataset LUMIERE_TD_FINAL.csv
+#   Prepare the time-dependent analysis dataset (LUMIERE_TD_FINAL.csv)
+#   from raw LUMIERE CSV files (downloaded from Figshare), OR
+#   verify that the final CSV is already available in data/.
 #
-# Notes:
-#   - Adjust the file names if your raw CSVs have slightly different names.
-#   - The final output is used by the R Markdown report and other scripts.
+#   For now, this script:
+#     1) Checks for the presence of data/LUMIERE_TD_FINAL.csv
+#     2) Provides a clear message if raw files or final file are missing
+#
+#   You can gradually move chunks from your original full script
+#   (e.g. LUMIERE_full_survival_analysis.R) into the section marked
+#   "USER-SPECIFIC PREPROCESSING".
+# ------------------------------------------------------------
 
-# 1. Load required packages -------------------------------------------------
-
-library(dplyr)
+library(here)
 library(readr)
-library(tidyr)
-# Add any other packages that you use in your preprocessing code.
+library(dplyr)
 
-# 2. Define input and output paths -----------------------------------------
+options(stringsAsFactors = FALSE)
 
-PATH_DEMO   <- "data/raw/LUMIERE-Demographics_Pathology.csv"
-PATH_RANO   <- "data/raw/LUMIERE-ExpertRating-v202211.csv"
-PATH_MR     <- "data/raw/LUMIERE-MRinfo.csv"
-PATH_PYRADS <- "data/raw/LUMIERE-pyradiomics-deepradiomics-features.csv"
+# Path to final analysis dataset
+OUT_FINAL <- here("data", "LUMIERE_TD_FINAL.csv")
 
-OUT_FINAL   <- "data/LUMIERE_TD_FINAL.csv"
+# Optional: paths to raw CSV files (if you decide to include them later)
+PATH_DEMO  <- here("data", "LUMIERE-Demographics_Pathology.csv")
+PATH_RANO  <- here("data", "LUMIERE-ExpertRating-v202211.csv")
+PATH_MR    <- here("data", "LUMIERE-MRinfo.csv")
+PATH_PYRAD <- here("data", "LUMIERE-pyradiomics-deepradnumia-features.csv")
 
-# 3. Read raw input tables --------------------------------------------------
+cat("=== 01_preprocess_to_TD_FINAL.R ===\n")
 
-demo   <- read_csv(PATH_DEMO)
-rano   <- read_csv(PATH_RANO)
-mrinfo <- read_csv(PATH_MR)
-pyrads <- read_csv(PATH_PYRADS)
+if (file.exists(OUT_FINAL)) {
+  cat("Found existing final dataset:\n  ", OUT_FINAL, "\n")
+  cat("No preprocessing performed (re-using existing LUMIERE_TD_FINAL.csv).\n")
+} else {
+  cat("Final dataset not found at:\n  ", OUT_FINAL, "\n\n")
+  
+  # Check whether raw files are present
+  raw_files <- c(PATH_DEMO, PATH_RANO, PATH_MR, PATH_PYRAD)
+  raw_exist <- file.exists(raw_files)
+  
+  if (!all(raw_exist)) {
+    cat("Some raw LUMIERE CSV files are missing.\n")
+    cat("Please download the raw data from the LUMIERE Figshare DOI\n")
+    cat("and place them under the data/ folder, for example:\n")
+    cat("  data/LUMIERE-Demographics_Pathology.csv\n")
+    cat("  data/LUMIERE-ExpertRating-v202211.csv\n")
+    cat("  data/LUMIERE-MRinfo.csv\n")
+    cat("  data/LUMIERE-pyradiomics-deepradnumia-features.csv\n")
+    stop("Cannot create LUMIERE_TD_FINAL.csv without raw input files.")
+  }
+  
+  cat("All raw input files seem to be present.\n")
+  cat("This is where you can move your user-specific preprocessing code.\n\n")
+  
+  # ----------------------------------------------------------
+  # USER-SPECIFIC PREPROCESSING (TODO)
+  # ----------------------------------------------------------
+  # 1) Read raw CSVs from PATH_DEMO, PATH_RANO, PATH_MR, PATH_PYRAD
+  # 2) Merge them into a single longitudinal dataset
+  # 3) Derive time-dependent covariates and event information
+  # 4) Save the final dataset to OUT_FINAL
+  #
+  # Example skeleton (replace with your actual code):
+  #
+  # demo  <- read_csv(PATH_DEMO)
+  # rano  <- read_csv(PATH_RANO)
+  # mr    <- read_csv(PATH_MR)
+  # pyrad <- read_csv(PATH_PYRAD)
+  #
+  # mydata_td <- your_preprocessing_function(demo, rano, mr, pyrad)
+  #
+  # write_csv(mydata_td, OUT_FINAL)
+  #
+  # ----------------------------------------------------------
+  
+  stop("Preprocessing code has not been implemented in this script yet.\n",
+       "Move your existing preprocessing steps here when ready.")
+}
 
-cat("Raw tables loaded.\n")
-cat("demo   :", nrow(demo),   "rows\n")
-cat("rano   :", nrow(rano),   "rows\n")
-cat("mrinfo :", nrow(mrinfo), "rows\n")
-cat("pyrads :", nrow(pyrads), "rows\n")
-
-# 4. Merge and preprocess ---------------------------------------------------
-# IMPORTANT:
-#   Here you should paste the preprocessing code that you ALREADY wrote
-#   in your R scripts / Rmd to create the final analysis dataset.
-#
-#   Typical steps might include:
-#     - joining tables by patient ID and time
-#     - filtering invalid records
-#     - selecting radiomics features
-#     - creating start/stop times and event indicator
-#
-# Example structure (replace with your real code):
-
-# mydata <- demo %>%
-#   inner_join(rano,   by = "PatientID") %>%
-#   inner_join(mrinfo, by = "PatientID") %>%
-#   inner_join(pyrads, by = c("PatientID", "Timepoint")) %>%
-#   mutate(
-#     # create survival variables, recode factors, etc.
-#   )
-
-# 5. Save analysis-ready dataset -------------------------------------------
-
-write_csv(mydata, OUT_FINAL)
-
-cat("\nSaved analysis-ready dataset to:", OUT_FINAL, "\n")
-print(dim(mydata))
+cat("Script 01 completed.\n")
