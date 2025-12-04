@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/1107499481.svg)](https://doi.org/10.5281/zenodo.17818439)
+
 📘 GBM-LUMIERE-Radiomics-Survival
 
 # Longitudinal FLAIR Radiomics and Survival in the LUMIERE Cohort
@@ -169,4 +171,4 @@ If you use this repository in academic work, please cite:
 
 Sarirchi S. (2025). GBM-LUMIERE-Radiomics-Survival: 
 Time-dependent survival modeling with longitudinal radiomics.
-GitHub repository: https://github.com/somayehsarirchi/GBM-LUMIERE-Radiomics-Survival
+GitHub repository: https://github.com/somayehsarirchi/GBM-LUMIERE-Radiomics-Survival (https://doi.org/10.5281/zenodo.17818439)
