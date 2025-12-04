@@ -1,65 +1,124 @@
-# scripts/02_run_survival_models.R
-# ------------------------------------------------------------
-# Purpose:
-#   Fit the final time-dependent Cox model on LUMIERE_TD_FINAL.csv
-#   and save the model object as an RDS file under results/models/.
-# ------------------------------------------------------------
+## scripts/02_run_survival_models.R
+##
+## This script loads the preprocessed longitudinal survival dataset,
+## prepares complete-case evaluation data, fits Cox models, computes 
+## evaluation time grids, and saves all objects required for 
+## downstream analyses and figure generation.
 
-library(here)
+rm(list = ls())
+
+# Load required packages
+library(tidyverse)
 library(readr)
-library(dplyr)
 library(survival)
+library(riskRegression)
+library(pec)
+library(here)
 
-options(stringsAsFactors = FALSE)
-
-cat("=== 02_run_survival_models.R ===\n")
-
-# Ensure output folder exists
-models_dir <- here("results", "models")
-if (!dir.exists(models_dir)) dir.create(models_dir, recursive = TRUE)
-
-# Path to final dataset
+# Input file (created by the preprocessing pipeline)
 OUT_FINAL <- here("data", "LUMIERE_TD_FINAL.csv")
 
-if (!file.exists(OUT_FINAL)) {
-  stop("Final dataset not found at: ", OUT_FINAL,
-       "\nRun 01_preprocess_to_TD_FINAL.R or provide the CSV manually.")
-}
+# Ensure results directory exists
+dir.create(here("results"), showWarnings = FALSE, recursive = TRUE)
 
-# Load data
+# ---------------------------------------------------------
+# 1) Load final time-dependent dataset
+# ---------------------------------------------------------
+
 mydata <- read_csv(OUT_FINAL)
 
-cat("Dimensions of dataset:\n")
+cat("Dataset dimensions:\n")
 print(dim(mydata))
 
-# ------------------------------------------------------------
-# Define the survival object and final Cox model formula
-# ------------------------------------------------------------
-# TODO: Adjust column names to match your TD_FINAL dataset.
-# Example assumptions:
-#   - time variable:   Survival
-#   - event variable:  event (1 = death, 0 = censored)
-#   - covariates:      Age, Max2Ddiameter, DiffEntropy
-#
-# Replace these with your real column names if different.
-# ------------------------------------------------------------
+# ---------------------------------------------------------
+# 2) Fit the final Cox model (as used in the Rmd report)
+# ---------------------------------------------------------
 
-# Example: Surv(time, status)
-surv_obj <- with(mydata, Surv(Survival, event))
+form_final <- Surv(Survival, event) ~
+  Age.at.surgery..years. +
+  original_shape_Maximum2DDiameterSlice +
+  original_glcm_DifferenceEntropy
 
-cox_formula <- surv_obj ~ Age.at.surgery..years. + original_shape_Maximum2DDiameterSlice + original_glcm_DifferenceEntropy
+model_final <- coxph(form_final, data = mydata, x = TRUE, y = TRUE)
+saveRDS(model_final, file = here("results", "model_final_coxph.rds"))
 
-cat("Fitting Cox model:\n")
-print(cox_formula)
+# ---------------------------------------------------------
+# 3) Complete-case evaluation dataset
+# ---------------------------------------------------------
 
-cox_final <- coxph(cox_formula, data = mydata, x = TRUE, y = TRUE)
+eval_vars <- c(
+  "Survival", "event",
+  "Age.at.surgery..years.",
+  "original_shape_Maximum2DDiameterSlice",
+  "original_glcm_DifferenceEntropy"
+)
 
-cat("\nModel summary:\n")
-print(summary(cox_final))
+eval_data <- mydata %>%
+  dplyr::select(all_of(eval_vars)) %>%
+  na.omit()
 
-# Save model
-model_path <- file.path(models_dir, "cox_final_model.rds")
-saveRDS(cox_final, model_path)
+cat("Complete-case dataset dimensions:\n")
+print(dim(eval_data))
+cat("Event distribution in eval_data:\n")
+print(table(eval_data$event))
 
-cat("\nSaved final Cox model to:\n  ", model_path, "\n")
-cat("Script 02 completed.\n")
+saveRDS(eval_data, file = here("results", "eval_data_complete_cases.rds"))
+
+# ---------------------------------------------------------
+# 4) Fit Cox model on complete-case dataset
+#    (use literal formula in the call to avoid dependencies
+#     on external objects when refitting during bootstrap)
+# ---------------------------------------------------------
+
+model_cc <- coxph(
+  Surv(Survival, event) ~
+    Age.at.surgery..years. +
+    original_shape_Maximum2DDiameterSlice +
+    original_glcm_DifferenceEntropy,
+  data = eval_data,
+  x = TRUE,
+  y = TRUE
+)
+
+saveRDS(model_cc, file = here("results", "model_cc_coxph.rds"))
+
+# ---------------------------------------------------------
+# 5) Evaluation times (quartiles of follow-up)
+# ---------------------------------------------------------
+
+eval_times <- as.numeric(quantile(
+  eval_data$Survival,
+  probs = c(0.25, 0.5, 0.75),
+  na.rm = TRUE
+))
+
+cat("Evaluation times (quartiles of follow-up):\n")
+print(eval_times)
+
+saveRDS(eval_times, file = here("results", "eval_times_quartiles.rds"))
+
+# ---------------------------------------------------------
+# 6) Time grids for C-index and Brier score curves
+# ---------------------------------------------------------
+
+times_grid <- seq(
+  min(eval_data$Survival),
+  max(eval_data$Survival),
+  length.out = 200
+)
+saveRDS(times_grid, file = here("results", "times_grid_cindex.rds"))
+
+times_grid2 <- seq(
+  min(eval_data$Survival),
+  max(eval_data$Survival),
+  length.out = 200
+)
+saveRDS(times_grid2, file = here("results", "times_grid_brier.rds"))
+
+# ---------------------------------------------------------
+# 7) Save full dataset for Kaplan–Meier and other plots
+# ---------------------------------------------------------
+
+saveRDS(mydata, file = here("results", "mydata_full_td.rds"))
+
+cat("All model and data objects saved to 'results/'.\n")
