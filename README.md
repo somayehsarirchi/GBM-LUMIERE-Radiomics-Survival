@@ -24,7 +24,7 @@ based on the public **LUMIERE** dataset:
 
 The main goal is to build and evaluate parsimonious Cox proportional hazards models
 using longitudinal FLAIR-derived radiomics features and clinical variables, and to
-assess time-dependent discrimination and calibration (C-index, Brier score, IBS).This repository accompanies the manuscript ‘Longitudinal FLAIR radiomics and survival in the LUMIERE cohort’ (Sarirchi et al., under review).
+assess time-dependent discrimination and calibration (C-index, Brier score, IBS).This repository demonstrates an independent outcome-driven survival modeling framework for longitudinal imaging data.
 
 ---
 
