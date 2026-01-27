@@ -8,11 +8,11 @@
 
 Independent outcome-driven re-analysis of the LUMIERE longitudinal glioblastoma cohort.
 
-➡ Case Study PDF:  
-[Download Case Study PDF](case_study/CaseStudy1_LUMIERE_Longitudinal_GBM_Radiomics.pdf)
+Demonstrates conversion of longitudinal MRI radiomics into interpretable prognostic biomarkers and patient risk stratification.
+
+➡ [Download Case Study PDF](case_study/CaseStudy1_LUMIERE_Longitudinal_GBM_Radiomics.pdf)
 
 
-This repository contains code and a reproducible analysis workflow for:
 
 > **Longitudinal FLAIR Radiomics and Survival in the LUMIERE Cohort**
 
